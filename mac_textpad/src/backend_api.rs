@@ -1,7 +1,5 @@
 //! Backend API - boundary between editor and CRDT logic.
 
-use core::str;
-
 /// Intent coming from the editor to the editor engine
 ///
 /// Position bases - CRDT can translate positions to IDs
