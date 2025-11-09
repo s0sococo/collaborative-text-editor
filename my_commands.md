@@ -32,7 +32,10 @@ active because: it's the default toolchain
 installed targets:
   aarch64-apple-darwin
 ```
-12) 
+12) cargo new mac_textpad --bin
+13) install cargo-edit package
+14) install: cargo add eframe rfd anyhow (libraries for GUI, popups and error handling)
+
 
 
 
