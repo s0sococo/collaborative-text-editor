@@ -1,5 +1,6 @@
 use crate::backend_api::{DocBackend, Intent};
 use eframe::{egui, egui::Context};
+use egui::Color32;
 
 pub struct AppView {
     backend: Box<dyn DocBackend>,
@@ -63,20 +64,23 @@ impl AppView {
     }
 
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("topbar").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                if ui.button("☰ Menu").clicked() {
-                    self.sidebar.visible = !self.sidebar.visible;
-                }
-                ui.separator();
+        egui::TopBottomPanel::top("topbar")
+            // .frame(
+            //     egui::Frame::default()
+            //         .fill(ctx.style().visuals.panel_fill) // use app background color
+            //         .stroke(egui::Stroke::NONE), // remove border line
+            // )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    if ui.button("☰ Menu").clicked() {
+                        self.sidebar.visible = !self.sidebar.visible;
+                    }
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("Cursor: {}", self.editor.cursor));
-                    ui.separator();
-                    ui.label("Collaborative Editor");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(format!("Cursor Position: {}", self.editor.cursor));
+                    });
                 });
             });
-        });
     }
 
     fn sidebar_panel(&mut self, ctx: &egui::Context) {
@@ -87,8 +91,6 @@ impl AppView {
             .resizable(true)
             .default_width(self.sidebar.default_width)
             .show(ctx, |ui| {
-                ui.heading("Documents");
-                ui.separator();
                 if ui.button("+ New").clicked() {
                     self.handle_intent(Intent::ReplaceAll {
                         text: String::new(),
@@ -99,7 +101,6 @@ impl AppView {
                     self.sidebar.docs.push("untitled.txt".into());
                     self.sidebar.selected = self.sidebar.docs.len() - 1;
                 }
-                ui.add_space(8.0);
 
                 for (i, name) in self.sidebar.docs.iter().enumerate() {
                     let selected = self.sidebar.selected == i;
@@ -108,12 +109,6 @@ impl AppView {
                         // Hook up: load different doc later
                     }
                 }
-
-                ui.add_space(8.0);
-                // ui.horizontal(|ui| {
-                //     if ui.button("Share…").clicked() { /* later */ }
-                //     if ui.button("Delete").clicked() { /* later */ }
-                // });
             });
     }
 
@@ -125,46 +120,49 @@ impl AppView {
             // centered column
             let available = ui.available_size();
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                egui::Frame::group(ui.style())
-                    .show(ui, |ui| {
-                        // ui.set_min_width(available.x);
-                        // ui.set_max_width(available.x);
+                let output = egui::TextEdit::multiline(&mut self.editor.text)
+                    .desired_rows(available.y as usize / 18)
+                    .lock_focus(true)
+                    .hint_text("Start typing…")
+                    .desired_width(
+                        self.editor
+                            .max_width
+                            .min(available.x - 20.0), // 20 px margin
+                    )
+                    .show(ui);
 
-                        let output = egui::TextEdit::multiline(&mut self.editor.text)
-                            .desired_rows(available.y as usize / 20) // Adjust desired rows based on available height
-                            .lock_focus(true)
-                            .hint_text("Start typing…")
-                            .show(ui);
-
-                        if output.response.changed() {
-                            self.handle_intent(Intent::ReplaceAll {
-                                text: self.editor.text.clone(),
-                            });
-                        }
-
-                        if let Some(cr) = output.cursor_range {
-                            let pos = cr.primary.index;
-                            if pos != self.editor.cursor {
-                                self.editor.cursor = pos;
-                                let _ = self.backend.apply_intent(Intent::MoveCursor { pos });
-                            }
-                        }
+                if output.response.changed() {
+                    self.handle_intent(Intent::ReplaceAll {
+                        text: self.editor.text.clone(),
                     });
+                }
+
+                if let Some(cr) = output.cursor_range {
+                    let pos = cr.primary.index;
+                    if pos != self.editor.cursor {
+                        self.editor.cursor = pos;
+                        let _ = self.backend.apply_intent(Intent::MoveCursor { pos });
+                    }
+                }
             });
         });
     }
 
     fn status_bar(&mut self, ctx: &egui::Context) {
-    egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-        ui.horizontal_wrapped(|ui| {
-            ui.label(&self.status);
-            ui.separator();
-            ui.label(format!("Length: {}", self.editor.text.chars().count()));
-            ui.separator();
-            ui.label(if self.sidebar.visible { "Sidebar: visible" } else { "Sidebar: hidden" });
+        egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(&self.status);
+                ui.separator();
+                ui.label(format!("Length: {}", self.editor.text.chars().count()));
+                ui.separator();
+                ui.label(if self.sidebar.visible {
+                    "Sidebar: visible"
+                } else {
+                    "Sidebar: hidden"
+                });
+            });
         });
-    });
-}
+    }
 }
 
 /// Najwaznijesza metoda eframe app - update UI
