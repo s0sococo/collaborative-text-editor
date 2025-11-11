@@ -53,6 +53,7 @@ impl eframe::App for AppView {
             );
 
             if resp.changed() {
+                println!("Text changed: {}", self.text_cache);
                 self.handle_intent(Intent::ReplaceAll {
                     text: self.text_cache.clone(),
                 });
