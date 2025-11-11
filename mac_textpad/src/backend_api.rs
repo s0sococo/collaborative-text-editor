@@ -84,6 +84,10 @@ impl DocBackend for MockBackend {
     fn apply_intent(&mut self, intent: Intent) -> FrontendUpdate {
         match intent {
             Intent::ReplaceAll { text } => self.text = text,
+            Intent::MoveCursor { pos } => {
+                // nie robimy nic z ruchem kursora w mocku
+                let _ = pos;
+            }
             _ => {} // reszta narazie nie jest zaimplementowana
         }
         FrontendUpdate {

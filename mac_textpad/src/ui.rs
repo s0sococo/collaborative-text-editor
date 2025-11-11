@@ -1,6 +1,5 @@
 use crate::backend_api::{DocBackend, Intent};
 use eframe::{egui, egui::Context};
-use egui::Color32;
 
 pub struct AppView {
     backend: Box<dyn DocBackend>,
@@ -65,11 +64,6 @@ impl AppView {
 
     fn top_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("topbar")
-            // .frame(
-            //     egui::Frame::default()
-            //         .fill(ctx.style().visuals.panel_fill) // use app background color
-            //         .stroke(egui::Stroke::NONE), // remove border line
-            // )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     if ui.button("☰ Menu").clicked() {
