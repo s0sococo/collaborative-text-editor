@@ -1,8 +1,7 @@
 //! Backend API - boundary between editor and CRDT logic.
 
-/// Intent coming from the editor to the editor engine
-///
-/// Position bases - CRDT can translate positions to IDs
+/// intencja uzytkownika w edytorze
+/// uzytkownik moze chciec wstawic tekst, usunac tekst, przesunac kursor
 #[derive(Debug, Clone, PartialEq)]
 pub enum Intent {
     /// insert 'text' at 'pos' (cursor)
@@ -15,23 +14,22 @@ pub enum Intent {
     ReplaceAll { text: String },
 }
 
-/// Remote peers caret in editor
+///  remotecursor do wyswietlania pozycji innych uzytkownikow
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemoteCursor {
-    pub site_id: String,      // peer identifier
-    pub pos: usize,           // caret position in text
-    pub color_rgba: [f32; 4], // color to display caret
+    pub site_id: String,      // unikalny identyfikator uzytkownika
+    pub pos: usize,           // pozycja kursora
+    pub color_rgba: [f32; 4], // kolor kursora w formacie RGBA
 }
 
-/// Update from the backend to the editor
-///
-/// full text snapshot + remote carets
+/// Aktualizacja dla frontendu - zwracana przez backend po zastosowaniu intencji
 #[derive(Debug, Clone, PartialEq)]
 pub struct FrontendUpdate {
-    pub full_text: Option<String>,
-    pub remote_cursors: Vec<RemoteCursor>,
+    pub full_text: Option<String>, // pelny tekst do zaktualizowania w edytorze
+    pub remote_cursors: Vec<RemoteCursor>, // aktualizacje pozycji zdalnych kursorow
 }
 
+// pusta aktualizacja
 impl FrontendUpdate {
     pub fn empty() -> Self {
         Self {
@@ -41,9 +39,13 @@ impl FrontendUpdate {
     }
 }
 
-/// trait - document enginge must implement
+///backend sluzy do zarzadzania dokumentem i synchronizacji
+///
+/// Trait for document backend - to jest cos w stylu interfejsu, ktory musi byc zaimplementowany
+///  przez kazdy backend (narzucone jest ze to moze byc zaimplementowane tylko dla
+///  struktur ktore sa Send)
 pub trait DocBackend: Send {
-    // apply intent from editor, return update for editor
+    // ta metoda dostaje "intencje" z edytora i zwraca aktualizacje dla edytora
     fn apply_intent(&mut self, intent: Intent) -> FrontendUpdate;
 
     // apply remote update from other peers, return update for editor, default empty
@@ -57,5 +59,40 @@ pub trait DocBackend: Send {
     // current remote cursor states , default empty
     fn remote_cursors(&self) -> Vec<RemoteCursor> {
         Vec::new()
+    }
+}
+
+pub struct MockBackend {
+    text: String,
+}
+
+// implementacja traitu Default dla MockBackend, ktory zmusza do implementacji metody default
+impl Default for MockBackend {
+    fn default() -> Self {
+        Self {
+            // pusty tekst na start
+            text: "".into(),
+        }
+    }
+}
+
+// implementujaemy trait DocBackend dla MockBackend
+// backend bedzie musial byc w przyszlosci podmieniony
+// zmuszamy do implementacji apply_intent i render_text
+impl DocBackend for MockBackend {
+    // kiedy dostaniemy intencje, to zaktualizujemy tekst i zwrocimy aktualizacje
+    fn apply_intent(&mut self, intent: Intent) -> FrontendUpdate {
+        match intent {
+            Intent::ReplaceAll { text } => self.text = text,
+            _ => {} // reszta narazie nie jest zaimplementowana
+        }
+        FrontendUpdate {
+            full_text: Some(self.text.clone()),
+            remote_cursors: vec![],
+        }
+    }
+
+    fn render_text(&self) -> String {
+        self.text.clone()
     }
 }
