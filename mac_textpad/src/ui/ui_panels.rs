@@ -3,7 +3,6 @@ use eframe::{egui, egui::Context};
 use egui::Key;
 
 impl AppView {
-
     pub fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         ctx.input(|i| {
             if i.modifiers.command && i.key_pressed(egui::Key::Backslash) {
@@ -17,20 +16,19 @@ impl AppView {
             }
         });
     }
-    
-    pub fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("topbar")
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button("☰ Menu").clicked() {
-                        self.sidebar.visible = !self.sidebar.visible;
-                    }
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(format!("Cursor Position: {}", self.editor.cursor));
-                    });
+    pub fn top_bar(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("topbar").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("☰ Menu").clicked() {
+                    self.sidebar.visible = !self.sidebar.visible;
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(format!("Cursor Position: {}", self.editor.cursor));
                 });
             });
+        });
     }
 
     pub fn sidebar_panel(&mut self, ctx: &egui::Context) {
@@ -69,7 +67,7 @@ impl AppView {
 
             // centered column
             let available = ui.available_size();
-            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
                 // display the document text with a visible cursor
                 let mut display_text = self.editor.text.clone();
                 let cursor_pos = self.editor.cursor;
@@ -77,9 +75,11 @@ impl AppView {
                     display_text.insert_str(cursor_pos, "|"); // Use "|" as a cursor indicator
                 }
 
-                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                    ui.add(egui::Label::new(display_text).wrap());
-                });
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.add(egui::Label::new(display_text).wrap());
+                    });
 
                 // invisible capture buffer to keep keyboard focus and receive events
                 let mut _capture = String::new();
@@ -91,24 +91,36 @@ impl AppView {
 
                 // helpers for char-boundary navigation/removal
                 fn prev_char_idx(s: &str, idx: usize) -> usize {
-                    if idx == 0 { return 0; }
+                    if idx == 0 {
+                        return 0;
+                    }
                     let mut i = idx;
                     // step back one UTF-8 codepoint
-                    while !s.is_char_boundary(i) { i -= 1; }
+                    while !s.is_char_boundary(i) {
+                        i -= 1;
+                    }
                     // now find previous char boundary
                     let mut j = i;
                     loop {
-                        if j == 0 { return 0; }
+                        if j == 0 {
+                            return 0;
+                        }
                         j -= 1;
-                        if s.is_char_boundary(j) { return j; }
+                        if s.is_char_boundary(j) {
+                            return j;
+                        }
                     }
                 }
                 fn next_char_idx(s: &str, idx: usize) -> usize {
-                    if idx >= s.len() { return s.len(); }
+                    if idx >= s.len() {
+                        return s.len();
+                    }
                     let mut i = idx;
                     // step forward to next char boundary
                     i += 1;
-                    while i < s.len() && !s.is_char_boundary(i) { i += 1; }
+                    while i < s.len() && !s.is_char_boundary(i) {
+                        i += 1;
+                    }
                     i.min(s.len())
                 }
 
@@ -124,51 +136,67 @@ impl AppView {
                                     self.handle_intent(Intent::ReplaceAll { text: new_text });
                                     // advance cursor by bytes of inserted text
                                     self.editor.cursor += text.len();
-                                    let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
+                                    let _ = self.backend.apply_intent(Intent::MoveCursor {
+                                        pos: self.editor.cursor,
+                                    });
                                 }
                             }
-                            egui::Event::Key { key, pressed: true, .. } => {
+                            egui::Event::Key {
+                                key, pressed: true, ..
+                            } => {
                                 match key {
                                     Key::Backspace => {
                                         if self.editor.cursor > 0 {
-                                            let prev = prev_char_idx(&self.editor.text, self.editor.cursor);
-                                            let mut new_text = self.editor.text.clone();
-                                            new_text.replace_range(prev..self.editor.cursor, "");
-                                            self.handle_intent(Intent::ReplaceAll { text: new_text });
+                                            let prev = prev_char_idx(
+                                                &self.editor.text,
+                                                self.editor.cursor,
+                                            );
+                                            // use handle_intent so editor.text gets updated from backend response
+                                            self.handle_intent(Intent::DeleteRange {
+                                                start: prev,
+                                                end: self.editor.cursor,
+                                            });
                                             self.editor.cursor = prev;
-                                            let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
-                                        }
-                                    }
-                                    Key::Delete => {
-                                        if self.editor.cursor < self.editor.text.len() {
-                                            let next = next_char_idx(&self.editor.text, self.editor.cursor);
-                                            let mut new_text = self.editor.text.clone();
-                                            new_text.replace_range(self.editor.cursor..next, "");
-                                            self.handle_intent(Intent::ReplaceAll { text: new_text });
-                                            let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
+                                            // notify backend about cursor move
+                                            self.handle_intent(Intent::MoveCursor {
+                                                pos: self.editor.cursor,
+                                            });
                                         }
                                     }
                                     Key::ArrowLeft => {
                                         if self.editor.cursor > 0 {
-                                            let prev = prev_char_idx(&self.editor.text, self.editor.cursor);
+                                            let prev = prev_char_idx(
+                                                &self.editor.text,
+                                                self.editor.cursor,
+                                            );
                                             self.editor.cursor = prev;
-                                            let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
+                                            let _ = self.backend.apply_intent(Intent::MoveCursor {
+                                                pos: self.editor.cursor,
+                                            });
                                         }
                                     }
                                     Key::ArrowRight => {
                                         if self.editor.cursor < self.editor.text.len() {
-                                            let next = next_char_idx(&self.editor.text, self.editor.cursor);
+                                            let next = next_char_idx(
+                                                &self.editor.text,
+                                                self.editor.cursor,
+                                            );
                                             self.editor.cursor = next;
-                                            let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
+                                            let _ = self.backend.apply_intent(Intent::MoveCursor {
+                                                pos: self.editor.cursor,
+                                            });
                                         }
                                     }
                                     Key::Enter => {
-                                        // insert newline
-                                        let mut new_text = self.editor.text.clone();
-                                        new_text.insert(self.editor.cursor, '\n');
-                                        self.handle_intent(Intent::ReplaceAll { text: new_text });
+                                        // insert newline using Intent::InsertAt
+                                        self.handle_intent(Intent::InsertAt {
+                                            pos: self.editor.cursor,
+                                            text: "\n".into(),
+                                        });
                                         self.editor.cursor += 1;
-                                        let _ = self.backend.apply_intent(Intent::MoveCursor { pos: self.editor.cursor });
+                                        let _ = self.backend.apply_intent(Intent::MoveCursor {
+                                            pos: self.editor.cursor,
+                                        });
                                     }
                                     _ => {}
                                 }
@@ -177,20 +205,6 @@ impl AppView {
                         }
                     }
                 });
-
-                // if output.response.changed() {
-                //     self.handle_intent(Intent::ReplaceAll {
-                //         text: self.editor.text.clone(),
-                //     });
-                // }
-
-                if let Some(cr) = output.cursor_range {
-                    let pos = cr.primary.index;
-                    if pos != self.editor.cursor {
-                        self.editor.cursor = pos;
-                        let _ = self.backend.apply_intent(Intent::MoveCursor { pos });
-                    }
-                }
             });
         });
     }

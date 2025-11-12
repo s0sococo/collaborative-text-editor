@@ -82,11 +82,19 @@ impl Default for MockBackend {
 impl DocBackend for MockBackend {
     // kiedy dostaniemy intencje, to zaktualizujemy tekst i zwrocimy aktualizacje
     fn apply_intent(&mut self, intent: Intent) -> FrontendUpdate {
+
         match intent {
             Intent::ReplaceAll { text } => self.text = text,
             Intent::MoveCursor { pos } => {
                 // nie robimy nic z ruchem kursora w mocku
+                // umiesc kursor w pozycji pos
                 let _ = pos;
+            }
+            Intent::InsertAt { pos, text } => {
+                self.text.insert_str(pos, &text);
+            }
+            Intent::DeleteRange { start, end } => {
+                self.text.replace_range(start..end, "");
             }
             _ => {} // reszta narazie nie jest zaimplementowana
         }
