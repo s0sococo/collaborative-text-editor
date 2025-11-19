@@ -50,7 +50,7 @@ impl AppView {
                     self.sidebar.selected = self.sidebar.docs.len() - 1;
                 }
 
-                 // new: open LiveKit page
+                // new: open LiveKit page
                 if ui.button("Open LiveKit").clicked() {
                     self.page = Page::LiveKit;
                 }
@@ -72,67 +72,58 @@ impl AppView {
                     if ui.button("Back to Editor").clicked() {
                         self.page = Page::Editor;
                     }
-                    ui.label(if self.livekit_connecting { "Connecting..." } else { "LiveKit" });
+                    ui.label(if self.livekit_connecting {
+                        "Connecting..."
+                    } else {
+                        "LiveKit"
+                    });
                 });
 
                 ui.separator();
 
-                // inputs: ws url, token, room name
                 ui.horizontal(|ui| {
                     ui.label("WS URL:");
                     ui.text_edit_singleline(&mut self.livekit_ws_url);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Token:");
-                    ui.text_edit_singleline(&mut self.livekit_token);
-                });
-                ui.horizontal(|ui| {
                     ui.label("Room:");
                     ui.text_edit_singleline(&mut self.livekit_room);
                 });
-
                 ui.horizontal(|ui| {
-                    if ui.button("Connect").clicked() {
-                        let url = self.livekit_ws_url.clone();
-                        let token = self.livekit_token.clone();
-                        self.start_livekit(url, token);
-                    }
-
-                    if ui.button("Create Room (admin)").clicked() {
-                        // requires admin key/secret to call LiveKit Admin REST API
-                        // show simple small inputs
-                        ui.label("admin key/secret required below");
-                    }
+                    ui.label("API Key:");
+                    ui.text_edit_singleline(&mut self.livekit_admin_key);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("API Secret:");
+                    ui.text_edit_singleline(&mut self.livekit_admin_secret);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Identity:");
+                    ui.text_edit_singleline(&mut self.livekit_identity);
                 });
 
-                ui.separator();
+                if ui.button("Auto Generate & Connect").clicked() {
+                    self.livekit_token = self.generate_token(&self.livekit_identity);
+                    let url = self.livekit_ws_url.clone();
+                    let token = self.livekit_token.clone();
+                    self.start_livekit(url, token);
+                }
 
-                ui.collapsing("Admin credentials (required to create room)", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Admin Key:");
-                        ui.text_edit_singleline(&mut self.livekit_admin_key);
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("Admin Secret:");
-                        ui.text_edit_singleline(&mut self.livekit_admin_secret);
-                    });
-                    if ui.button("Create & Connect").clicked() {
-                        // call create_room then connect (token still required from user)
-                        let host = self.livekit_ws_url.clone();
-                        let room = self.livekit_room.clone();
-                        let admin_key = self.livekit_admin_key.clone();
-                        let admin_secret = self.livekit_admin_secret.clone();
-                        self.create_room(host.clone(), room.clone(), admin_key, admin_secret);
-                        // after create, try to connect using provided token
-                        let url = host;
-                        let token = self.livekit_token.clone();
-                        self.start_livekit(url, token);
-                    }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Token:");
+                    ui.text_edit_singleline(&mut self.livekit_token);
                 });
 
-                ui.separator();
+                if ui.button("Connect with Token").clicked() {
+                    let url = self.livekit_ws_url.clone();
+                    let token = self.livekit_token.clone();
+                    self.start_livekit(url, token);
+                }
 
-                // event log
+                ui.separator();
+                ui.heading("Events:");
+
                 let events = {
                     let guard = self.livekit_events.lock().unwrap();
                     guard.clone()
