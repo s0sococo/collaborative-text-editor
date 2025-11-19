@@ -24,9 +24,9 @@ impl AppView {
                     self.sidebar.visible = !self.sidebar.visible;
                 }
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("Cursor Position: {}", self.editor.cursor));
-                });
+                // ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                //     ui.label(format!("Cursor Position: {}", self.editor.cursor));
+                // });
             });
         });
     }
@@ -211,17 +211,17 @@ impl AppView {
 
     pub fn status_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(&self.status);
-                ui.separator();
-                ui.label(format!("Length: {}", self.editor.text.chars().count()));
-                ui.separator();
-                ui.label(if self.sidebar.visible {
-                    "Sidebar: visible"
-                } else {
-                    "Sidebar: hidden"
-                });
-            });
+            // ui.horizontal_wrapped(|ui| {
+            //     ui.label(&self.status);
+            //     ui.separator();
+            //     ui.label(format!("Length: {}", self.editor.text.chars().count()));
+            //     ui.separator();
+            //     ui.label(if self.sidebar.visible {
+            //         "Sidebar: visible"
+            //     } else {
+            //         "Sidebar: hidden"
+            //     });
+            // });
         });
     }
 }
