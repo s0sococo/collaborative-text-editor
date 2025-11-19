@@ -90,24 +90,38 @@ impl AppView {
                     ui.text_edit_singleline(&mut self.livekit_room);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("API Key:");
-                    ui.text_edit_singleline(&mut self.livekit_admin_key);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("API Secret:");
-                    ui.text_edit_singleline(&mut self.livekit_admin_secret);
-                });
-                ui.horizontal(|ui| {
                     ui.label("Identity:");
                     ui.text_edit_singleline(&mut self.livekit_identity);
                 });
 
-                if ui.button("Auto Generate & Connect").clicked() {
-                    self.livekit_token = self.generate_token(&self.livekit_identity);
-                    let url = self.livekit_ws_url.clone();
-                    let token = self.livekit_token.clone();
-                    self.start_livekit(url, token);
+                ui.separator();
+
+                // Create room via Admin API (Cloud / Enterprise only)
+                if ui.button("Create Room (Admin)").clicked() {
+                    self.create_room();
                 }
+
+                ui.horizontal(|ui| {
+                    if ui.button("Auto Generate Token").clicked() {
+                        // generate synchronously for UI and store in shared slot as well
+                        let tok = self.generate_token(&self.livekit_identity);
+                        // put into visible/editable field
+                        self.livekit_token = tok.clone();
+                        // tok already stored in shared slot by generate_token (if implemented that way)
+                        let mut v = self.livekit_events.lock().unwrap();
+                        v.push("Token auto-generated (dev-only).".into());
+                    }
+                    if ui.button("Connect with Token").clicked() {
+                        let token = self.livekit_token.clone();
+                        if token.trim().is_empty() {
+                            let mut v = self.livekit_events.lock().unwrap();
+                            v.push("No token available. Generate or paste a token first.".into());
+                        } else {
+                            let url = self.livekit_ws_url.clone();
+                            self.start_livekit(url, token);
+                        }
+                    }
+                });
 
                 ui.separator();
                 ui.horizontal(|ui| {
@@ -115,15 +129,20 @@ impl AppView {
                     ui.text_edit_singleline(&mut self.livekit_token);
                 });
 
-                if ui.button("Connect with Token").clicked() {
-                    let url = self.livekit_ws_url.clone();
-                    let token = self.livekit_token.clone();
-                    self.start_livekit(url, token);
-                }
-
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Token (shared):");
+                    let token_display = {
+                        self.livekit_token_shared
+                            .lock()
+                            .unwrap()
+                            .clone()
+                            .unwrap_or_default()
+                    };
+                    ui.add(egui::Label::new(token_display).wrap());
+                });
                 ui.separator();
                 ui.heading("Events:");
-
                 let events = {
                     let guard = self.livekit_events.lock().unwrap();
                     guard.clone()
@@ -136,7 +155,6 @@ impl AppView {
             });
         });
     }
-
     pub fn editor_center(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             // keep shortcuts here so they work even when sidebar hidden
