@@ -102,15 +102,15 @@ impl AppView {
                 }
 
                 ui.horizontal(|ui| {
-                    if ui.button("Auto Generate Token").clicked() {
-                        // generate synchronously for UI and store in shared slot as well
-                        let tok = self.generate_token(&self.livekit_identity);
-                        // put into visible/editable field
-                        self.livekit_token = tok.clone();
-                        // tok already stored in shared slot by generate_token (if implemented that way)
-                        let mut v = self.livekit_events.lock().unwrap();
-                        v.push("Token auto-generated (dev-only).".into());
-                    }
+                    // if ui.button("Auto Generate Token").clicked() {
+                    //     // generate synchronously for UI and store in shared slot as well
+                    //     let tok = self.generate_token(&self.livekit_identity);
+                    //     // put into visible/editable field
+                    //     self.livekit_token = tok.clone();
+                    //     // tok already stored in shared slot by generate_token (if implemented that way)
+                    //     let mut v = self.livekit_events.lock().unwrap();
+                    //     v.push("Token auto-generated (dev-only).".into());
+                    // }
                     if ui.button("Connect with Token").clicked() {
                         let token = self.livekit_token.clone();
                         if token.trim().is_empty() {

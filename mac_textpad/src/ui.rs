@@ -69,7 +69,7 @@ struct LiveKitClaims {
 }
 
 impl AppView {
-     pub fn new(backend: Box<dyn DocBackend>) -> Self {
+    pub fn new(backend: Box<dyn DocBackend>) -> Self {
         let text_cache = backend.render_text();
         Self {
             backend,
@@ -153,7 +153,11 @@ impl AppView {
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
             rt.block_on(async move {
-                match Room::connect(&url, &token, RoomOptions::default()).await {
+                // include the token as a query parameter in case the websocket upgrade does not forward
+                // the Authorization header; the LiveKit server accepts access_token in the URL.
+                let connect_url = format!("{}?access_token={}", url, token);
+
+                match Room::connect(&connect_url, &token, RoomOptions::default()).await {
                     Ok((room, mut ev_rx)) => {
                         {
                             let mut v = events.lock().unwrap();
@@ -173,7 +177,7 @@ impl AppView {
         });
     }
 
-       fn admin_base_from_ws(&self) -> String {
+    fn admin_base_from_ws(&self) -> String {
         let u = self.livekit_ws_url.trim();
         if u.starts_with("wss://") {
             u.replacen("wss://", "https://", 1)
@@ -184,7 +188,7 @@ impl AppView {
         }
     }
 
-   // ...existing code...
+    // ...existing code...
     pub fn create_room(&mut self) {
         let admin_base = self.admin_base_from_ws();
         let room_name = self.livekit_room.clone();
@@ -196,12 +200,18 @@ impl AppView {
 
         {
             let mut v = events.lock().unwrap();
-            v.push(format!("Creating room '{}' via admin API at {}", room_name, admin_base));
+            v.push(format!(
+                "Creating room '{}' via admin API at {}",
+                room_name, admin_base
+            ));
         }
 
         std::thread::spawn(move || {
             // admin JWT
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             let admin_claims = LiveKitClaims {
                 iss: admin_key.clone(),
                 sub: admin_key.clone(),
@@ -209,9 +219,16 @@ impl AppView {
                 iat: now,
                 exp: now + 60,
                 nbf: now,
-                video: VideoGrants { room_join: false, room: "".into() },
+                video: VideoGrants {
+                    room_join: false,
+                    room: "".into(),
+                },
             };
-            let admin_token = match encode(&Header::default(), &admin_claims, &EncodingKey::from_secret(admin_secret.as_ref())) {
+            let admin_token = match encode(
+                &Header::default(),
+                &admin_claims,
+                &EncodingKey::from_secret(admin_secret.as_ref()),
+            ) {
                 Ok(t) => t,
                 Err(e) => {
                     let mut v = events.lock().unwrap();
@@ -225,7 +242,8 @@ impl AppView {
             let client = reqwest::blocking::Client::new();
             let body = serde_json::json!({ "name": room_name.clone() });
 
-            match client.post(&api_url)
+            match client
+                .post(&api_url)
                 .bearer_auth(admin_token.clone())
                 .json(&body)
                 .send()
@@ -233,7 +251,9 @@ impl AppView {
                 Ok(resp) => {
                     let mut v = events.lock().unwrap();
                     v.push(format!("Create room HTTP status: {}", resp.status()));
-                    if let Ok(t) = resp.text() { v.push(format!("Create room body: {}", t)); }
+                    if let Ok(t) = resp.text() {
+                        v.push(format!("Create room body: {}", t));
+                    }
                 }
                 Err(e) => {
                     let mut v = events.lock().unwrap();
@@ -243,7 +263,10 @@ impl AppView {
             }
 
             // generate user token signed with admin_secret
-            let now2 = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now2 = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             let user_claims = LiveKitClaims {
                 iss: admin_key.clone(),
                 sub: "user-generated".into(),
@@ -251,9 +274,16 @@ impl AppView {
                 iat: now2,
                 exp: now2 + 3600,
                 nbf: now2,
-                video: VideoGrants { room_join: true, room: room_name.clone() },
+                video: VideoGrants {
+                    room_join: true,
+                    room: room_name.clone(),
+                },
             };
-            let user_token = match encode(&Header::default(), &user_claims, &EncodingKey::from_secret(admin_secret.as_ref())) {
+            let user_token = match encode(
+                &Header::default(),
+                &user_claims,
+                &EncodingKey::from_secret(admin_secret.as_ref()),
+            ) {
                 Ok(t) => t,
                 Err(e) => {
                     let mut v = events.lock().unwrap();
@@ -279,7 +309,13 @@ impl AppView {
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
                 rt.block_on(async move {
-                    match livekit::prelude::Room::connect(&ws2, &token_for_connect, livekit::prelude::RoomOptions::default()).await {
+                    match livekit::prelude::Room::connect(
+                        &ws2,
+                        &token_for_connect,
+                        livekit::prelude::RoomOptions::default(),
+                    )
+                    .await
+                    {
                         Ok((room, mut events_rx)) => {
                             let mut v = events2.lock().unwrap();
                             v.push(format!("Connected to room: {}", room.name()));
@@ -298,13 +334,19 @@ impl AppView {
             });
         });
     }
-// ...existing code...
+    // ...existing code...
 }
 
 // eframe trait for AppView
 impl eframe::App for AppView {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // If background thread wrote a token into the shared slot, copy it into the editable input
+        // ...existing code in impl eframe::App for AppView, inside update() ...
+        // If background thread wrote a token into the shared slot, copy it into the editable input
+        let mut should_connect = false;
+        let mut url = String::new();
+        let mut token = String::new();
+
         if let Ok(mut slot) = self.livekit_token_shared.lock() {
             if slot.is_some() {
                 if let Some(tok) = slot.take() {
@@ -312,9 +354,18 @@ impl eframe::App for AppView {
                     if let Ok(mut v) = self.livekit_events.lock() {
                         v.push("Received token from background".into());
                     }
+                    // Prepare to AUTO-CONNECT here (only after token delivered)
+                    if !self.livekit_connecting {
+                        url = self.livekit_ws_url.clone();
+                        token = self.livekit_token.clone();
+                        // should_connect = true;
+                    }
                 }
             }
         }
+        // if should_connect {
+        //     self.start_livekit(url, token);
+        // }
 
         self.top_bar(ctx);
         self.sidebar_panel(ctx);
