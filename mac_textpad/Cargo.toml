@@ -7,7 +7,7 @@ edition = "2021"
 anyhow = "1.0.100"
 eframe = "0.33.0"
 rfd = "0.15.4"
-egui = "0.33.0" 
+egui = "0.33.0"
 livekit = "0.7.24"
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "sync", "macros"] }
 reqwest = { version = "0.12.24", features = ["blocking", "json", "rustls-tls"] }
