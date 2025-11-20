@@ -26,7 +26,8 @@ async fn main() {
     dotenv::dotenv().ok();
 
     // let api_host = "https://inzynierka-28c03xlk.livekit.cloud";
-    let api_host = "http://209.38.105.89:7880";
+    // let api_host = "http://209.38.105.89:7880";
+    let api_host = "http://127.0.0.1:7880";
 
     let room_service = match RoomClient::new(api_host) {
         Ok(svc) => svc,
@@ -66,22 +67,28 @@ async fn main() {
     println!("Sent message to room: {}", room.name);
 
     // press enter to send another message
-
-    let stdin = io::stdin();
-    let _ = stdin.lock().lines().next();
-    let data = b"Another message from Rust client!".to_vec();
-    let options = livekit_api::services::room::SendDataOptions {
-        ..Default::default()
-    };
-    room_service
-        .send_data(&room.name, data, options)
-        .await
-        .unwrap();
-    println!("Sent another message to room: {}", room.name);
-
-    // await for user input to exit
     use std::io::{self, BufRead};
-    println!("Press Enter to exit...");
+
+    println!("Type a message and press Enter to send. Type EXIT to quit.");
+
     let stdin = io::stdin();
-    let _ = stdin.lock().lines().next();
+    for line in stdin.lock().lines() {
+        let msg = match line {
+            Ok(m) => m,
+            Err(_) => break,
+        };
+        if msg.trim().eq_ignore_ascii_case("EXIT") {
+            println!("Exiting application.");
+            break;
+        }
+        let data = msg.into_bytes();
+        let options = livekit_api::services::room::SendDataOptions {
+            ..Default::default()
+        };
+        if let Err(e) = room_service.send_data(&room.name, data, options).await {
+            eprintln!("Failed to send message: {}", e);
+        } else {
+            println!("Sent message to room: {}", room.name);
+        }
+    }
 }

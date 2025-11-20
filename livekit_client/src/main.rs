@@ -6,7 +6,8 @@ use livekit::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = "ws://209.38.105.89:7880";
+    // let url = "ws://209.38.105.89:7880";
+    let url = "ws://127.0.0.1:7880";
     dotenv::dotenv().ok();
 
     let token = create_token().expect("Failed to create access token");
@@ -30,7 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         text
                     );
                 } else {
-                    println!("Received message (no participant info)");
+
+                    println!("Received message (no participant info) {}", String::from_utf8_lossy(&payload));
                 }
             }
             _ => {
