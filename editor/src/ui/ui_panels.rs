@@ -82,10 +82,6 @@ impl AppView {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    ui.label("WS URL:");
-                    ui.text_edit_singleline(&mut self.livekit_ws_url);
-                });
-                ui.horizontal(|ui| {
                     ui.label("Room:");
                     ui.text_edit_singleline(&mut self.livekit_room);
                 });
@@ -97,51 +93,12 @@ impl AppView {
                 ui.separator();
 
                 // Create room via Admin API (Cloud / Enterprise only)
-                if ui.button("Create Room (Admin)").clicked() {
-                    self.create_room();
+                if ui.button("Connect").clicked() {
+                    self.connect_or_create_to_room();
                 }
 
-                ui.horizontal(|ui| {
-                    // if ui.button("Auto Generate Token").clicked() {
-                    //     // generate synchronously for UI and store in shared slot as well
-                    //     let tok = self.generate_token(&self.livekit_identity);
-                    //     // put into visible/editable field
-                    //     self.livekit_token = tok.clone();
-                    //     // tok already stored in shared slot by generate_token (if implemented that way)
-                    //     let mut v = self.livekit_events.lock().unwrap();
-                    //     v.push("Token auto-generated (dev-only).".into());
-                    // }
-                    if ui.button("Connect with Token").clicked() {
-                        let token = self.livekit_token.clone();
-                        if token.trim().is_empty() {
-                            let mut v = self.livekit_events.lock().unwrap();
-                            v.push("No token available. Generate or paste a token first.".into());
-                        } else {
-                            let url = self.livekit_ws_url.clone();
-                            self.start_livekit(url, token);
-                        }
-                    }
-                });
-
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Token:");
-                    ui.text_edit_singleline(&mut self.livekit_token);
-                });
-
-                ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Token (shared):");
-                    let token_display = {
-                        self.livekit_token_shared
-                            .lock()
-                            .unwrap()
-                            .clone()
-                            .unwrap_or_default()
-                    };
-                    ui.add(egui::Label::new(token_display).wrap());
-                });
-                ui.separator();
+                
                 ui.heading("Events:");
                 let events = {
                     let guard = self.livekit_events.lock().unwrap();
@@ -152,6 +109,29 @@ impl AppView {
                         ui.label(ev);
                     }
                 });
+                // if connected to the room: Area where messages 
+                // can be typed and sent displays
+                ui.separator();
+
+                // message input + send button (visible when not connecting)
+                if self.livekit_connected {
+                    ui.horizontal(|ui| {
+                        ui.label("Message:");
+                        ui.text_edit_singleline(&mut self.livekit_message);
+                        if ui.button("Send").clicked() {
+                            // locally record the outgoing message
+                            {
+                                let mut guard = self.livekit_events.lock().unwrap();
+                                guard.push(format!("You: {}", self.livekit_message));
+                            }
+                            self.send_livekit_message(self.livekit_message.clone());
+                            self.livekit_message.clear();
+                        }
+                    });
+                } else {
+                    ui.label("Connect to a room to send and see participants messages.");
+                }
+
             });
         });
     }

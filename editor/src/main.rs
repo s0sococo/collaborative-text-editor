@@ -8,6 +8,7 @@ use eframe::NativeOptions;
 fn main() -> eframe::Result<()> {
     let mut native_options = NativeOptions::default();
     native_options.centered = true;
+    dotenv::dotenv().ok();
     eframe::run_native(
         "Collaborative Text Editor",
         native_options,
