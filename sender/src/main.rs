@@ -1,33 +1,19 @@
-// mod backend_api;
-// mod ui;
-// use livekit_api::access_token;
-// use std::env;
-
-// // use crate::backend_api::MockBackend;
-// // use crate::ui::AppView;
-// // use eframe::NativeOptions;
-// // use egui::vec2;
-
-// // use livekit::prelude::*;
-// // fn main() -> eframe::Result<()> {
-// //     let mut native_options = NativeOptions::default();
-// //     native_options.centered = true;
-// //     eframe::run_native(
-// //         "Collaborative Text Editor",
-// //         native_options,
-// //         Box::new(|_cc| Ok(Box::new(AppView::new(Box::new(MockBackend::default()))))),
-// //     )
-// // }
-
 use livekit_api::services::room::{CreateRoomOptions, RoomClient};
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
 
-    let api_host = std::env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://127.0.0.1:7880".to_string());
+    let host = std::env::var("LIVEKIT_URL").unwrap_or_else(|_| "127.0.0.1:7880".to_string());
 
-    let room_service = match RoomClient::new(api_host) {
+    // add "http://" prefix if missing
+    let http_url = if !host.starts_with("http://") && !host.starts_with("https://") {
+        format!("http://{}", host)
+    } else {
+        host
+    };
+
+    let room_service = match RoomClient::new(&http_url) {
         Ok(svc) => svc,
         Err(e) => {
             eprintln!("Failed to create RoomClient: {}. Ensure LIVEKIT_API_KEY and LIVEKIT_API_SECRET environment variables are set, or provide credentials programmatically.", e);

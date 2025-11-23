@@ -6,23 +6,40 @@ use livekit::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let url = "ws://209.38.105.89:7880";
-    let url = "ws://127.0.0.1:7880";
+    let host = std::env::var("LIVEKIT_URL").unwrap_or_else(|_| "127.0.0.1:7880".to_string());
+
+    let web_socket_url = if host.starts_with("ws://") || host.starts_with("wss://") {
+        host
+    } else if host.starts_with("http://") {
+        host.replacen("http://", "ws://", 1)
+    } else if host.starts_with("https://") {
+        host.replacen("https://", "wss://", 1)
+    } else {
+        format!("ws://{}", host)
+    };
+
     dotenv::dotenv().ok();
 
     let token = create_token().expect("Failed to create access token");
 
     println!("Generated token: {}", token);
 
-    println!("Connecting to LiveKit server at {}", url);
+    println!("Connecting to LiveKit server at {}", web_socket_url);
 
-    let (room, mut room_events) = Room::connect(&url, &token, RoomOptions::default()).await?;
+    let (room, mut room_events) = Room::connect(&web_socket_url, &token, RoomOptions::default()).await?;
 
     while let Some(event) = room_events.recv().await {
         match event {
             RoomEvent::DataReceived { payload, topic, participant, .. } => {
                 if let Some(p) = participant {
                     let from = p.identity();
+
+                    // 
+
+                    println!("Participant ID: {}", p.sid());
+                    println!("Participant Name: {}", p.name());
+
+
                     let text = String::from_utf8_lossy(&payload);
                     println!(
                         "Received message from {} on {}: {}",
@@ -32,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 } else {
 
+            
                     println!("Received message (no participant info) {}", String::from_utf8_lossy(&payload));
                 }
             }

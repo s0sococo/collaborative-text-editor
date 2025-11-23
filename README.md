@@ -119,4 +119,4 @@ Po więcej koment odsyłam do dokumentacji lib `lk --help`.
 
 ## Edytor
 
-Aktualnie edytor umozliwia tworzenie pokoju lub dolaczenie do pokoju. Logika synchronizacji danych jeszcze nie została zaimplementowana. 
+Aktualnie edytor umozliwia tworzenie pokoju lub dolaczenie do pokoju. Logika synchronizacji danych jeszcze nie została zaimplementowana. Edytor w komunikacji korzysta z LiveKit RUST SDK.
