@@ -1,6 +1,5 @@
 use livekit::prelude::*;
 use livekit_api::access_token;
-use livekit_api::services::room::{CreateRoomOptions, RoomClient};
 use std::env;
 use std::io::BufRead;
 use std::sync::Arc;
@@ -84,32 +83,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // 6. Main Loop (Sender)
-
-    let local_participant = room.local_participant();
-
+    // wait till user wants to exit -- press enter "EXIT"
     let stdin = std::io::stdin();
     for line in stdin.lock().lines() {
-        let msg = match line {
-            Ok(m) => m,
-            Err(_) => break,
-        };
-        if msg.trim().eq_ignore_ascii_case("EXIT") {
+        let msg = line?.trim().to_string(); 
+        if msg.eq_ignore_ascii_case("EXIT") {
             println!("Exiting application.");
             break;
         }
-        // 3. Publish the data
-        local_participant
-            .publish_data(DataPacket {
-                payload: msg.into_bytes(),
-                reliable: true,
-                ..Default::default()
-            })
-            .await
-            .unwrap();
+        if !msg.is_empty() {
+            // 1. Send to others
+            room.local_participant()
+                .publish_data(DataPacket {
+                    payload: msg.as_bytes().to_vec(),
+                    reliable: true,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+
+            // 2. Print locally for yourself
+            // \x1b[1A moves cursor up one line to overwrite the raw input if you want, 
+            // but a simple println is fine for basic debugging.
+            println!("\r[You] {}", msg);
+        }
     }
 
-    // Cleanup
     room.close().await.ok();
     Ok(())
 }

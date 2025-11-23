@@ -33,23 +33,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             RoomEvent::DataReceived { payload, topic, participant, .. } => {
                 if let Some(p) = participant {
                     let from = p.identity();
-
-                    // 
-
-                    println!("Participant ID: {}", p.sid());
-                    println!("Participant Name: {}", p.name());
-
-
                     let text = String::from_utf8_lossy(&payload);
                     println!(
-                        "Received message from {} on {}: {}",
+                        "[{}]: {}",
                         from,
-                        topic.as_deref().unwrap_or("<none>"),
                         text
                     );
                 } else {
-
-            
                     println!("Received message (no participant info) {}", String::from_utf8_lossy(&payload));
                 }
             }
