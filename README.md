@@ -104,3 +104,19 @@ Saved CLI config to [/Users/-----/.livekit/cli-config.yaml]
 ```
 
 Co nam to daje ? Najwazniejsze mozliwosci to podglad utworzonych kanałow i liczbe ich uzytkowników, ale CLI daje mozliwosc tworzenia nowych pokoi, access_tokenów do łączenia się z kanałami przez uzytkownikow. 
+
+```
+~ lk room list
+Using project [local-inzynierka]
+┌────────┬──────┬──────────────┬────────────┐
+│ RoomID │ Name │ Participants │ Publishers │
+├────────┼──────┼──────────────┼────────────┤
+└────────┴──────┴──────────────┴────────────┘
+```
+
+Po więcej koment odsyłam do dokumentacji lib `lk --help`.
+
+
+## Edytor
+
+Aktualnie edytor umozliwia tworzenie pokoju lub dolaczenie do pokoju. Logika synchronizacji danych jeszcze nie została zaimplementowana. 
