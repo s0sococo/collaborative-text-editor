@@ -200,6 +200,7 @@ impl AppView {
                                 }
                                 RoomEvent::ParticipantDisconnected(p) => {
                                     let identity = p.identity().to_string();
+                                    println!("Participant disconnected: {}", identity);
                                     let mut guard = participants_log.lock().unwrap();
                                     if let Some(pos) = guard.iter().position(|x| *x == identity) {
                                         guard.remove(pos);
@@ -215,24 +216,34 @@ impl AppView {
                                      events_log.lock().unwrap().push(format!("Disconnected: {:?}", reason));
                                      break;
                                 }
+                                
                                 _ => {}
                             }
                         }
-                        Some(msg) = rx.recv() => {
-                            // Send message to others
-                            let res = room.local_participant()
-                                .publish_data(DataPacket {
-                                    payload: msg.as_bytes().to_vec(),
-                                    reliable: true,
-                                    ..Default::default()
-                                })
-                                .await;
-                            
-                            if let Err(e) = res {
-                                events_log.lock().unwrap().push(format!("Failed to send: {}", e));
-                            } else {
-                                events_log.lock().unwrap().push(format!("[You] {}", msg));
+                        msg = rx.recv() => {
+                            match msg {
+                                Some(s) => {
+                                    if s == "Disconnect" {
+                                        break; // Break the loop on user disconnect command
+                                    }
+                                     // Send message to others
+                                    let res = room.local_participant()
+                                        .publish_data(DataPacket {
+                                            payload: s.as_bytes().to_vec(),
+                                            reliable: true,
+                                            ..Default::default()
+                                        })
+                                        .await;
+                                    
+                                    if let Err(e) = res {
+                                        events_log.lock().unwrap().push(format!("Failed to send: {}", e));
+                                    } else {
+                                        events_log.lock().unwrap().push(format!("[You] {}", s));
+                                    }
+                                }
+                                None => break, // Break if UI drops the sender
                             }
+                           
                         }
                     }
                 }
