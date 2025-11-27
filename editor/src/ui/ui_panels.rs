@@ -91,14 +91,19 @@ impl AppView {
                 });
 
                 ui.separator();
-
                 // Create room via Admin API (Cloud / Enterprise only)
-                if ui.button("Connect").clicked() {
-                    self.connect_or_create_to_room();
+                if self.livekit_connected {
+                    if ui.button("Disconnect").clicked() {
+                        self.disconnect_room();
+                    }
+                } else {
+                    if ui.button("Connect").clicked() {
+                        self.connect_or_create_to_room();
+                    }
                 }
 
                 ui.separator();
-                
+
                 ui.heading("Events:");
                 let events = {
                     let guard = self.livekit_events.lock().unwrap();
@@ -109,9 +114,26 @@ impl AppView {
                         ui.label(ev);
                     }
                 });
-                // if connected to the room: Area where messages 
+                // if connected to the room: Area where messages
                 // can be typed and sent displays
                 ui.separator();
+
+                if self.livekit_connected {
+                    ui.heading("Participants:");
+                    let participants = {
+                        let guard = self.livekit_participants.lock().unwrap();
+                        guard.clone()
+                    };
+                    egui::ScrollArea::vertical()
+                        .id_salt("participants_list") // Add unique ID
+                        .max_height(100.0)
+                        .show(ui, |ui| {
+                            for p in participants {
+                                ui.label(format!("• {}", p));
+                            }
+                        });
+                    ui.separator();
+                }
 
                 // message input + send button (visible when not connecting)
                 if self.livekit_connected {
@@ -131,7 +153,6 @@ impl AppView {
                 } else {
                     ui.label("Connect to a room to send and see participants messages.");
                 }
-
             });
         });
     }

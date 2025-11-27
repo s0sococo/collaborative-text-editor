@@ -23,6 +23,7 @@ pub struct AppView {
 
     // Connected LiveKit room state
     livekit_events: Arc<Mutex<Vec<String>>>,
+    livekit_participants: Arc<Mutex<Vec<String>>>,
     livekit_connected: bool,
     livekit_connecting: bool,
     // LiveKit panel inputs
@@ -86,6 +87,7 @@ impl AppView {
             },
             page: Page::Editor,
             livekit_events: Arc::new(Mutex::new(Vec::new())),
+            livekit_participants: Arc::new(Mutex::new(Vec::new())),
             livekit_connected: false,
             livekit_connecting: false,
             livekit_ws_url: web_socket_url.into(),
@@ -150,6 +152,7 @@ impl AppView {
 
         let url = self.livekit_ws_url.clone();
         let events_log = self.livekit_events.clone();
+        let participants_log = self.livekit_participants.clone();
         
         // Create a channel to send messages from UI to the background task
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
@@ -169,10 +172,40 @@ impl AppView {
                 let room = Arc::new(room);
                 events_log.lock().unwrap().push("Connected to Room".to_string());
 
+                // Initial participants list
+                {
+                    let mut guard = participants_log.lock().unwrap();
+                    guard.clear();
+                    // Add local participant
+                    guard.push(format!("{} (You)", room.local_participant().identity()));
+                    // Add remote participants
+                    for (_, p) in room.remote_participants() {
+                        guard.push(p.identity().to_string());
+                    }
+                }
+
                 loop {
                     tokio::select! {
                         Some(event) = room_events.recv() => {
                             match event {
+                                RoomEvent::DataReceived { payload, participant, .. } => {
+                                    let text = String::from_utf8_lossy(&payload);
+                                    let sender = participant.map(|p| p.name().to_string()).unwrap_or("Unknown".to_string());
+                                    events_log.lock().unwrap().push(format!("[{}] {}", sender, text));
+                                }
+                                RoomEvent::ParticipantConnected(p) => {
+                                    let identity = p.identity().to_string();
+                                    participants_log.lock().unwrap().push(identity.clone());
+                                    events_log.lock().unwrap().push(format!("Participant connected: {}", identity));
+                                }
+                                RoomEvent::ParticipantDisconnected(p) => {
+                                    let identity = p.identity().to_string();
+                                    let mut guard = participants_log.lock().unwrap();
+                                    if let Some(pos) = guard.iter().position(|x| *x == identity) {
+                                        guard.remove(pos);
+                                    }
+                                    events_log.lock().unwrap().push(format!("Participant disconnected: {}", identity));
+                                }
                                 RoomEvent::DataReceived { payload, participant, .. } => {
                                     let text = String::from_utf8_lossy(&payload);
                                     let sender = participant.map(|p| p.name().to_string()).unwrap_or("Unknown".to_string());
@@ -222,6 +255,16 @@ impl AppView {
                 guard.push(format!("Failed to enqueue message: {}", e));
             }
         }
+    }
+
+    pub fn disconnect_room(&mut self) {
+        if let Some(sender) = &self.livekit_command_sender {
+            let _ = sender.send("Disconnect".to_string());
+        }
+        self.livekit_connected = false;
+        self.livekit_command_sender = None;
+        self.livekit_participants.lock().unwrap().clear();
+        self.livekit_events.lock().unwrap().push("Disconnected.".to_string());
     }
     // ...existing code...
 }
