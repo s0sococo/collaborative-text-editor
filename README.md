@@ -4,6 +4,14 @@ Praca inzynierska Sofya Karahoda, Piotr Jankiewicz
 
 Mini PW Informatyka i Systemy informatyczne, 2025/26
 
+## Struktura folderów
+
+- editor: głowny element projektu, czyli edytor tekstu
+- sender-receiver: przykładowy projekt implementujący LiveKit SDK do łączności z serwerem
+- sender: przykładowy projekt implementujący LiveKit SDK 
+- receiver: przykładowy projekt implementujący LiveKit SDK 
+- diagrams: fodler z diagramami do dokumentacji / specyfikacji projektu
+
 ## Architekrura
 
 Do działania projektu potrzebny jest uruchomiony serwer SFU od LiveKit. LiveKit 
